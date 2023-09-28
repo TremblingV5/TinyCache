@@ -6,178 +6,112 @@ import (
 	"github.com/TremblingV5/TinyCache/ds/cmap"
 )
 
-type Value interface {
-	Len() int
-}
-
-type Node struct {
-	last, next *Node
-	key        string
-	value      Value
-}
-
-func NewNode(key string, value Value) *Node {
-	return &Node{
-		key:   key,
-		value: value,
-	}
-}
-
-func (node *Node) Next() *Node {
-	return node.next
-}
-
-func (node *Node) SetNext(nextNode *Node) *Node {
-	node.next = nextNode
-	return nextNode
-}
-
-func (node *Node) Last() *Node {
-	return node.last
-}
-
-func (node *Node) SetLast(lastNode *Node) *Node {
-	node.last = lastNode
-	return lastNode
-}
-
-func (node *Node) Key() String {
-	return String(node.key)
-}
-
-func (node *Node) Value() Value {
-	return node.value
-}
-
-func (node *Node) Size() int64 {
-	return int64(unsafe.Sizeof(*node))
-}
-
-type Cache interface {
+type ICache interface {
 	Set(string, Value) error
 	Get(string) (Value, bool)
 	Del(string) error
 	Len() int
+
+	IsFull() bool
+	Reduce()
+	AddBytes(*Node)
+	ReduceBytes(*Node)
 }
 
-type Base struct {
+type ICacheElimination interface {
+	Add(list *List, node *Node)
+	OpAfterView(list *List, node *Node)
+	Remove(list *List, node *Node)
+}
+
+type BaseCache struct {
 	maxBytes int64
 	numBytes int64
-	head     *Node
-	tail     *Node
-	cache    cmap.CMap[*Node]
+	list     *List
+	dict     cmap.CMap[*Node]
 
-	Add         func(base *Base, node *Node, isNew bool)
-	Rm          func(base *Base, node *Node)
-	OpAfterView func(base *Base, node *Node)
-	Reduce      func(base *Base)
+	handle ICacheElimination
 
 	// optional and executed when an entry is purged.
 	onEvicted func(key string, value Value)
 }
 
-func newElement(key string, data Value) *Node {
-	return &Node{
-		key:   key,
-		value: data,
-		last:  nil,
-		next:  nil,
-	}
-}
-
-func (element *Node) Len() int {
-	return element.value.Len()
-}
-
-func New(maxBytes int64, shardCount int, onEvicted func(string, Value)) *Base {
-	head := NewNode("", nil)
-	tail := NewNode("", nil)
-
-	head.SetNext(tail)
-	tail.SetLast(head)
-
-	return &Base{
+func NewBaseCache(maxBytes int64, shardCount int, onEvicted func(string, Value)) *BaseCache {
+	return &BaseCache{
 		maxBytes:  maxBytes,
 		numBytes:  0,
-		head:      head,
-		tail:      tail,
-		cache:     cmap.New[*Node](shardCount),
+		list:      NewList(shardCount),
+		dict:      cmap.New[*Node](shardCount),
 		onEvicted: onEvicted,
 	}
 }
 
-func (c *Base) Begin() *Node {
-	return c.head.Next()
+func (c *BaseCache) SetHandle(handle ICacheElimination) {
+	c.handle = handle
 }
 
-func (c *Base) End() *Node {
-	return c.tail.Last()
-}
-
-func (c *Base) Set(key string, value Value) error {
-	element, ok := c.cache.Get(key)
+func (c *BaseCache) Set(key string, value Value) error {
+	element, ok := c.dict.Get(key)
 	if ok {
 		element.value = value
-		c.OpAfterView(c, element)
+		c.handle.OpAfterView(c.list, element)
 		return nil
 	}
 
-	newElement := newElement(key, value)
-	c.Add(c, newElement, true)
-	c.Reduce(c)
-	c.cache.Set(key, newElement)
+	newNode := NewNode(key, value)
+	c.handle.Add(c.list, newNode)
+	c.AddBytes(newNode)
+	c.Reduce()
+	c.dict.Set(key, newNode)
 	return nil
 }
 
-func (c *Base) Get(key string) (Value, bool) {
-	element, ok := c.cache.Get(key)
+func (c *BaseCache) Get(key string) (Value, bool) {
+	element, ok := c.dict.Get(key)
 	if !ok {
 		return nil, ok
 	}
 
-	c.OpAfterView(c, element)
+	c.handle.OpAfterView(c.list, element)
 	return element.value, ok
 }
 
-func (c *Base) Del(key string) error {
-	element, ok := c.cache.Get(key)
+func (c *BaseCache) Del(key string) error {
+	element, ok := c.dict.Get(key)
 	if !ok {
 		return nil
 	}
 
-	c.Rm(c, element)
-	c.cache.Remove(key)
+	c.handle.Remove(c.list, element)
+	c.dict.Remove(key)
 	return nil
 }
 
-func (c *Base) PushFront(element *Node) {
-	element.SetLast(c.head)
-	element.SetNext(c.head.Next())
-	c.head.Next().SetLast(element)
-	c.head.SetNext(element)
+func (c *BaseCache) Reduce() {
+	for c.IsFull() {
+		least := c.list.End()
+		c.handle.Remove(c.list, least)
+		c.dict.Remove(string(least.Key()))
+		c.ReduceBytes(least)
+	}
 }
 
-func (c *Base) Remove(element *Node) {
-	element.Last().SetNext(element.Next())
-	element.Next().SetLast(element.Last())
-}
-
-func (c *Base) AddBytes(element *Node) {
+func (c *BaseCache) AddBytes(element *Node) {
 	c.numBytes += int64(element.Value().Len())
 	c.numBytes += int64(element.Key().Len())
 	c.numBytes += int64(2 * unsafe.Sizeof(element.last))
 }
 
-func (c *Base) ReduceBytes(element *Node) {
+func (c *BaseCache) ReduceBytes(element *Node) {
 	c.numBytes -= int64(element.Value().Len())
 	c.numBytes -= int64(element.Key().Len())
 	c.numBytes -= int64(2 * unsafe.Sizeof(element.last))
 }
 
-func (c *Base) IsFull() bool {
+func (c *BaseCache) IsFull() bool {
 	return c.numBytes > c.maxBytes
 }
 
-func (c *Base) Len() int {
-	return c.cache.Count()
+func (c *BaseCache) Len() int {
+	return c.dict.Count()
 }

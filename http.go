@@ -34,6 +34,7 @@ type HTTPPool struct {
 func NewHTTPPool(self string) *HTTPPool {
 	return &HTTPPool{
 		self:     self,
+		mu:       sync.Mutex{},
 		basePath: defaultBasePath,
 	}
 }

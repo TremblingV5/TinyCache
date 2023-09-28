@@ -48,7 +48,7 @@ func NewGroup(name string, cacheBytes int64, getter Getter) *Group {
 	g := &Group{
 		name:      name,
 		getter:    getter,
-		mainCache: cache{cacheBytes: cacheBytes},
+		mainCache: newCache(cacheBytes),
 		loader:    &singleflight.Group{},
 	}
 	groups[name] = g
@@ -109,7 +109,7 @@ func (g *Group) load(key string) (value ByteView, err error) {
 }
 
 func (g *Group) populateCache(key string, value ByteView) {
-	g.mainCache.add(key, value)
+	g.mainCache.set(key, value)
 }
 
 func (g *Group) getLocally(key string) (ByteView, error) {

@@ -1,65 +1,65 @@
 package elimination
 
 import (
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/TremblingV5/TinyCache/base"
 )
 
-type String string
-
-func (d String) Len() int {
-	return len(d)
+func runLRUCacheTest(t *testing.T, maxBytes int64, shardCount int, test func(*testing.T, *base.BaseCache)) {
+	cache := base.NewBaseCache(maxBytes, shardCount, func(s string, v base.Value) {})
+	cache.SetHandle(&LRU{})
 }
 
-func TestGet(t *testing.T) {
-	lru := New(int64(0), nil)
-	lru.Add("key1", String("1234"))
-	if v, ok := lru.Get("key1"); !ok || string(v.(String)) != "1234" {
-		t.Fatalf("cache hit key1=1234 failed")
-	}
-	if _, ok := lru.Get("key2"); ok {
-		t.Fatalf("cache miss key2 failed")
-	}
+func lruSet(t *testing.T, cache *base.BaseCache, key string, value string, expectErr error) {
+	err := cache.Set(key, base.String(value))
+	require.Equal(t, err, expectErr)
 }
 
-func TestRemoveoldest(t *testing.T) {
-	k1, k2, k3 := "key1", "key2", "k3"
-	v1, v2, v3 := "value1", "value2", "v3"
-	cap := len(k1 + k2 + v1 + v2)
-	lru := New(int64(cap), nil)
-	lru.Add(k1, String(v1))
-	lru.Add(k2, String(v2))
-	lru.Add(k3, String(v3))
-
-	if _, ok := lru.Get("key1"); ok || lru.Len() != 2 {
-		t.Fatalf("Removeoldest key1 failed")
+func lruGet(t *testing.T, cache *base.BaseCache, key string, expectOk bool, expectValue string) {
+	value, ok := cache.Get(key)
+	require.Equal(t, ok, expectOk)
+	if ok {
+		require.Equal(t, string(value.(base.String)), expectValue)
 	}
 }
 
-func TestOnEvicted(t *testing.T) {
-	keys := make([]string, 0)
-	callback := func(key string, value Value) {
-		keys = append(keys, key)
-	}
-	lru := New(int64(10), callback)
-	lru.Add("key1", String("123456"))
-	lru.Add("k2", String("k2"))
-	lru.Add("k3", String("k3"))
-	lru.Add("k4", String("k4"))
+func TestLRUCache(t *testing.T) {
+	t.Run("Normal set and get", func(t *testing.T) {
+		runLRUCacheTest(t, 64, 32, func(t *testing.T, cache *base.BaseCache) {
+			lruSet(t, cache, "1", "1", nil)
+			lruGet(t, cache, "1", true, "1")
+		})
+	})
 
-	expect := []string{"key1", "k2"}
+	t.Run("Delete the lru key", func(t *testing.T) {
+		runLRUCacheTest(t, 64, 32, func(t *testing.T, cache *base.BaseCache) {
+			lruSet(t, cache, "1", "1", nil)
+			lruSet(t, cache, "2", "2", nil)
+			lruSet(t, cache, "3", "3", nil)
+			lruSet(t, cache, "4", "4", nil)
 
-	if !reflect.DeepEqual(expect, keys) {
-		t.Fatalf("Call OnEvicted failed, expect keys equals to %s", expect)
-	}
-}
+			lruGet(t, cache, "1", false, "")
+			lruGet(t, cache, "2", true, "2")
+			lruGet(t, cache, "3", true, "3")
+			lruGet(t, cache, "4", true, "4")
+		})
+	})
 
-func TestAdd(t *testing.T) {
-	lru := New(int64(0), nil)
-	lru.Add("key", String("1"))
-	lru.Add("key", String("111"))
+	t.Run("Delete the lru key with double view for the first key", func(t *testing.T) {
+		runLRUCacheTest(t, 64, 32, func(t *testing.T, cache *base.BaseCache) {
+			lruSet(t, cache, "1", "1", nil)
+			lruSet(t, cache, "2", "2", nil)
+			lruSet(t, cache, "3", "3", nil)
+			lruGet(t, cache, "1", true, "1")
+			lruSet(t, cache, "4", "4", nil)
 
-	if lru.nbytes != int64(len("key")+len("111")) {
-		t.Fatal("expected 6 but got", lru.nbytes)
-	}
+			lruGet(t, cache, "1", true, "1")
+			lruGet(t, cache, "2", false, "")
+			lruGet(t, cache, "3", true, "3")
+			lruGet(t, cache, "4", true, "4")
+		})
+	})
 }
