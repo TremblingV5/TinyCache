@@ -23,8 +23,8 @@ var db = map[string]string{
 	"Sam":  "567",
 }
 
-func createGroup() *TinyCache.Group {
-	return TinyCache.NewGroup("scores", 2<<10, TinyCache.GetterFunc(
+func createGroup() *TinyCache.Bucket {
+	return TinyCache.NewBucket("scores", 2<<10, TinyCache.GetterFunc(
 		func(key string) ([]byte, error) {
 			log.Println("[SlowDB] search key", key)
 			if v, ok := db[key]; ok {
@@ -34,7 +34,7 @@ func createGroup() *TinyCache.Group {
 		}))
 }
 
-func startCacheServer(addr string, addrs []string, gee *TinyCache.Group) {
+func startCacheServer(addr string, addrs []string, gee *TinyCache.Bucket) {
 	peers := TinyCache.NewHTTPPool(addr)
 	peers.Set(addrs...)
 	gee.RegisterPeers(peers)
@@ -42,7 +42,7 @@ func startCacheServer(addr string, addrs []string, gee *TinyCache.Group) {
 	log.Fatal(http.ListenAndServe(addr[7:], peers))
 }
 
-func startAPIServer(apiAddr string, gee *TinyCache.Group) {
+func startAPIServer(apiAddr string, gee *TinyCache.Bucket) {
 	http.Handle("/api", http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			key := r.URL.Query().Get("key")

@@ -9,8 +9,8 @@ import (
 	"github.com/TremblingV5/TinyCache/singleflight"
 )
 
-// A Group is a cache namespace and associated data loaded spread over
-type Group struct {
+// A Bucket is a cache namespace and associated data loaded spread over
+type Bucket struct {
 	name      string
 	getter    Getter
 	mainCache cache
@@ -35,17 +35,17 @@ func (f GetterFunc) Get(key string) ([]byte, error) {
 
 var (
 	mu     sync.RWMutex
-	groups = make(map[string]*Group)
+	groups = make(map[string]*Bucket)
 )
 
-// NewGroup create a new instance of Group
-func NewGroup(name string, cacheBytes int64, getter Getter) *Group {
+// NewBucket create a new instance of Bucket
+func NewBucket(name string, cacheBytes int64, getter Getter) *Bucket {
 	if getter == nil {
 		panic("nil Getter")
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	g := &Group{
+	g := &Bucket{
 		name:      name,
 		getter:    getter,
 		mainCache: newCache(cacheBytes),
@@ -55,9 +55,9 @@ func NewGroup(name string, cacheBytes int64, getter Getter) *Group {
 	return g
 }
 
-// GetGroup returns the named group previously created with NewGroup, or
+// GetBucket returns the named group previously created with NewBucket, or
 // nil if there's no such group.
-func GetGroup(name string) *Group {
+func GetBucket(name string) *Bucket {
 	mu.RLock()
 	g := groups[name]
 	mu.RUnlock()
@@ -65,7 +65,7 @@ func GetGroup(name string) *Group {
 }
 
 // Get value for a key from cache
-func (g *Group) Get(key string) (ByteView, error) {
+func (g *Bucket) Get(key string) (ByteView, error) {
 	if key == "" {
 		return ByteView{}, fmt.Errorf("key is required")
 	}
@@ -79,14 +79,14 @@ func (g *Group) Get(key string) (ByteView, error) {
 }
 
 // RegisterPeers registers a PeerPicker for choosing remote peer
-func (g *Group) RegisterPeers(peers PeerPicker) {
+func (g *Bucket) RegisterPeers(peers PeerPicker) {
 	if g.peers != nil {
 		panic("RegisterPeerPicker called more than once")
 	}
 	g.peers = peers
 }
 
-func (g *Group) load(key string) (value ByteView, err error) {
+func (g *Bucket) load(key string) (value ByteView, err error) {
 	// each key is only fetched once (either locally or remotely)
 	// regardless of the number of concurrent callers.
 	viewi, err := g.loader.Do(key, func() (interface{}, error) {
@@ -108,11 +108,11 @@ func (g *Group) load(key string) (value ByteView, err error) {
 	return
 }
 
-func (g *Group) populateCache(key string, value ByteView) {
+func (g *Bucket) populateCache(key string, value ByteView) {
 	g.mainCache.set(key, value)
 }
 
-func (g *Group) getLocally(key string) (ByteView, error) {
+func (g *Bucket) getLocally(key string) (ByteView, error) {
 	bytes, err := g.getter.Get(key)
 	if err != nil {
 		return ByteView{}, err
@@ -123,7 +123,7 @@ func (g *Group) getLocally(key string) (ByteView, error) {
 	return value, nil
 }
 
-func (g *Group) getFromPeer(peer PeerGetter, key string) (ByteView, error) {
+func (g *Bucket) getFromPeer(peer PeerGetter, key string) (ByteView, error) {
 	req := &pb.Request{
 		Group: g.name,
 		Key:   key,
