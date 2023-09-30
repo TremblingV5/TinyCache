@@ -1,0 +1,50 @@
+version: "3"
+
+networks:
+    total:
+        driver: bridge
+
+services:
+    master:
+        image: tinycache:latest
+        container_name: master
+        ports:
+            - "8000:8000"
+            - "9999:9999"
+        environment:
+            - Port=8000
+            - ApiPort=9999
+            - StartApi=true
+            - Master=self
+            - MaxBytes=20480
+        restart: always
+
+    slave1:
+        image: tinycache:latest
+        container_name: slave1
+        ports:
+            - "8001:8001"
+        environment:
+            - Port=8001
+            - ApiPort=9999
+            - StartApi=false
+            - Master=master:8000
+            - MaxBytes=20480
+        depends_on:
+            - master
+        restart: always
+
+    slave2:
+        image: tinycache:latest
+        container_name: slave2
+        ports:
+            - "8002:8002"
+        environment:
+            - Port=8002
+            - ApiPort=9999
+            - StartApi=false
+            - Master=master:8000
+            - MaxBytes=20480
+        depends_on:
+            - master
+        restart: always

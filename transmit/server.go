@@ -1,11 +1,11 @@
-package tinycache
+package transmit
 
 import (
 	"fmt"
-	"io/ioutil"
+	tinycache "github.com/TremblingV5/TinyCache"
+	"github.com/TremblingV5/TinyCache/ds/cmap"
 	"log"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 
@@ -27,15 +27,16 @@ type HTTPPool struct {
 	basePath    string
 	mu          sync.Mutex // guards peers and httpGetters
 	peers       *consistenthash.Map
-	httpGetters map[string]*httpGetter // keyed by e.g. "http://10.0.0.2:8008"
+	httpGetters cmap.CMap[*httpClient] // keyed by e.g. "http://10.0.0.2:8008"
 }
 
 // NewHTTPPool initializes an HTTP pool of peers.
 func NewHTTPPool(self string) *HTTPPool {
 	return &HTTPPool{
-		self:     self,
-		mu:       sync.Mutex{},
-		basePath: defaultBasePath,
+		self:        self,
+		mu:          sync.Mutex{},
+		basePath:    defaultBasePath,
+		httpGetters: cmap.New[*httpClient](32),
 	}
 }
 
@@ -60,7 +61,7 @@ func (p *HTTPPool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	groupName := parts[0]
 	key := parts[1]
 
-	group := GetBucket(groupName)
+	group := tinycache.GetBucket(groupName)
 	if group == nil {
 		http.Error(w, "no such group: "+groupName, http.StatusNotFound)
 		return
@@ -89,56 +90,20 @@ func (p *HTTPPool) Set(peers ...string) {
 	defer p.mu.Unlock()
 	p.peers = consistenthash.New(defaultReplicas, nil)
 	p.peers.Add(peers...)
-	p.httpGetters = make(map[string]*httpGetter, len(peers))
 	for _, peer := range peers {
-		p.httpGetters[peer] = &httpGetter{baseURL: peer + p.basePath}
+		p.httpGetters.Set(peer, &httpClient{baseURL: peer + p.basePath})
 	}
 }
 
 // PickPeer picks a peer according to key
-func (p *HTTPPool) PickPeer(key string) (PeerGetter, bool) {
+func (p *HTTPPool) PickPeer(key string) (tinycache.PeerGetter, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if peer := p.peers.Get(key); peer != "" && peer != p.self {
 		p.Log("Pick peer %s", peer)
-		return p.httpGetters[peer], true
+		return p.httpGetters.Get(peer)
 	}
 	return nil, false
 }
 
-var _ PeerPicker = (*HTTPPool)(nil)
-
-type httpGetter struct {
-	baseURL string
-}
-
-func (h *httpGetter) Get(in *pb.Request, out *pb.Response) error {
-	u := fmt.Sprintf(
-		"%v%v/%v",
-		h.baseURL,
-		url.QueryEscape(in.GetGroup()),
-		url.QueryEscape(in.GetKey()),
-	)
-	res, err := http.Get(u)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("server returned: %v", res.Status)
-	}
-
-	bytes, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return fmt.Errorf("reading response body: %v", err)
-	}
-
-	if err = proto.Unmarshal(bytes, out); err != nil {
-		return fmt.Errorf("decoding response body: %v", err)
-	}
-
-	return nil
-}
-
-var _ PeerGetter = (*httpGetter)(nil)
+var _ tinycache.PeerPicker = (*HTTPPool)(nil)

@@ -5,6 +5,8 @@ import (
 	"log"
 	"sync"
 
+	"github.com/TremblingV5/TinyCache/base"
+	"github.com/TremblingV5/TinyCache/ds/cmap"
 	"github.com/TremblingV5/TinyCache/pb"
 	"github.com/TremblingV5/TinyCache/singleflight"
 )
@@ -34,8 +36,8 @@ func (f GetterFunc) Get(key string) ([]byte, error) {
 }
 
 var (
-	mu     sync.RWMutex
-	groups = make(map[string]*Bucket)
+	mu      sync.RWMutex
+	buckets = cmap.New[*Bucket](32)
 )
 
 // NewBucket create a new instance of Bucket
@@ -51,23 +53,34 @@ func NewBucket(name string, cacheBytes int64, getter Getter) *Bucket {
 		mainCache: newCache(cacheBytes),
 		loader:    &singleflight.Group{},
 	}
-	groups[name] = g
+	buckets.Set(name, g)
 	return g
+}
+
+func AddBucket(name string, cacheBytes int64) {
+	// mu.Lock()
+	// defer mu.Unlock()
+
+	buckets.Set(name, NewBucket(name, cacheBytes, GetterFunc(func(key string) ([]byte, error) {
+		return nil, nil
+	})))
 }
 
 // GetBucket returns the named group previously created with NewBucket, or
 // nil if there's no such group.
 func GetBucket(name string) *Bucket {
 	mu.RLock()
-	g := groups[name]
-	mu.RUnlock()
-	return g
+	defer mu.RUnlock()
+	if g, ok := buckets.Get(name); ok {
+		return g
+	}
+	return nil
 }
 
 // Get value for a key from cache
-func (g *Bucket) Get(key string) (ByteView, error) {
+func (g *Bucket) Get(key string) (base.ByteView, error) {
 	if key == "" {
-		return ByteView{}, fmt.Errorf("key is required")
+		return base.ByteView{}, fmt.Errorf("key is required")
 	}
 
 	if v, ok := g.mainCache.get(key); ok {
@@ -78,6 +91,14 @@ func (g *Bucket) Get(key string) (ByteView, error) {
 	return g.load(key)
 }
 
+func (g *Bucket) Set(key string, value base.ByteView) {
+	g.mainCache.set(key, value)
+}
+
+func (g *Bucket) Del(key string) {
+	g.mainCache.del(key)
+}
+
 // RegisterPeers registers a PeerPicker for choosing remote peer
 func (g *Bucket) RegisterPeers(peers PeerPicker) {
 	if g.peers != nil {
@@ -86,7 +107,7 @@ func (g *Bucket) RegisterPeers(peers PeerPicker) {
 	g.peers = peers
 }
 
-func (g *Bucket) load(key string) (value ByteView, err error) {
+func (g *Bucket) load(key string) (value base.ByteView, err error) {
 	// each key is only fetched once (either locally or remotely)
 	// regardless of the number of concurrent callers.
 	viewi, err := g.loader.Do(key, func() (interface{}, error) {
@@ -103,27 +124,27 @@ func (g *Bucket) load(key string) (value ByteView, err error) {
 	})
 
 	if err == nil {
-		return viewi.(ByteView), nil
+		return viewi.(base.ByteView), nil
 	}
 	return
 }
 
-func (g *Bucket) populateCache(key string, value ByteView) {
+func (g *Bucket) populateCache(key string, value base.ByteView) {
 	g.mainCache.set(key, value)
 }
 
-func (g *Bucket) getLocally(key string) (ByteView, error) {
+func (g *Bucket) getLocally(key string) (base.ByteView, error) {
 	bytes, err := g.getter.Get(key)
 	if err != nil {
-		return ByteView{}, err
+		return base.ByteView{}, err
 
 	}
-	value := ByteView{b: cloneBytes(bytes)}
+	value := base.ByteView{B: base.CloneBytes(bytes)}
 	g.populateCache(key, value)
 	return value, nil
 }
 
-func (g *Bucket) getFromPeer(peer PeerGetter, key string) (ByteView, error) {
+func (g *Bucket) getFromPeer(peer PeerGetter, key string) (base.ByteView, error) {
 	req := &pb.Request{
 		Group: g.name,
 		Key:   key,
@@ -131,7 +152,7 @@ func (g *Bucket) getFromPeer(peer PeerGetter, key string) (ByteView, error) {
 	res := &pb.Response{}
 	err := peer.Get(req, res)
 	if err != nil {
-		return ByteView{}, err
+		return base.ByteView{}, err
 	}
-	return ByteView{b: res.Value}, nil
+	return base.ByteView{B: res.Value}, nil
 }

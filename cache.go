@@ -22,19 +22,26 @@ func newCache(cacheBytes int64) cache {
 	}
 }
 
-func (c *cache) set(key string, value ByteView) {
+func (c *cache) set(key string, value base.ByteView) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.cache.Set(key, value)
 }
 
-func (c *cache) get(key string) (value ByteView, ok bool) {
+func (c *cache) get(key string) (value base.ByteView, ok bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if v, ok := c.cache.Get(key); ok {
-		return v.(ByteView), ok
+		return v.(base.ByteView), ok
 	}
 
 	return
+}
+
+func (c *cache) del(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.cache.Del(key)
 }

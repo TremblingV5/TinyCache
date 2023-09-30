@@ -15,3 +15,15 @@ message Response {
 service GroupCache {
     rpc Get(Request) returns (Response);
 }
+
+message PingRequest {
+    string child = 1;
+}
+
+message PingResponse {
+    string peers = 1;
+}
+
+service PingPong {
+    rpc Ping(PingRequest) returns (PingResponse);
+}
