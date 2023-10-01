@@ -1,29 +1,48 @@
 syntax = "proto3";
 package pb;
 
-option go_package = "./";
+option go_package = ".;pb";
 
-message Request {
-    string group = 1;
+message GetKeyRequest {
+    string bucket = 1;
     string key = 2;
 }
 
-message Response {
-    bytes value = 1;
+message GetKeyResponse {
+    int64 errCode = 1;
+    bytes value = 2;
 }
 
-service GroupCache {
-    rpc Get(Request) returns (Response);
+message SetKeyRequest {
+    string bucket = 1;
+    string key = 2;
+    bytes value = 3;
 }
 
-message PingRequest {
-    string child = 1;
+message SetKeyResponse {
+    int64 errCode = 1;
 }
 
-message PingResponse {
-    string peers = 1;
+message DeleteKeyRequest {
+    string bucket = 1;
+    string key = 2;
 }
 
-service PingPong {
-    rpc Ping(PingRequest) returns (PingResponse);
+message DeleteKeyResponse {
+    int64 errCode = 1;
+}
+
+message DeleteBucketRequest {
+    string bucket = 1;
+}
+
+message DeleteBucketResponse {
+    int64 errCode = 1;
+}
+
+service CacheServer {
+    rpc Get(GetKeyRequest) returns (GetKeyResponse);
+    rpc Set(SetKeyRequest) returns (SetKeyResponse);
+    rpc Delete(DeleteKeyRequest) returns (DeleteKeyResponse);
+    rpc DeleteBucket(DeleteBucketRequest) returns (DeleteBucketResponse);
 }

@@ -1,10 +1,12 @@
 package api
 
 import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
 	tinycache "github.com/TremblingV5/TinyCache"
 	"github.com/TremblingV5/TinyCache/base"
-	"github.com/gin-gonic/gin"
-	"net/http"
 )
 
 func GetController(c *gin.Context) {
@@ -28,7 +30,7 @@ func SetController(c *gin.Context) {
 	value := c.Param("value")
 
 	if bucket := tinycache.GetBucket(bucketName); bucket == nil {
-		tinycache.AddBucket(bucketName, config.MaxBytes)
+		tinycache.AddBucketLocally(bucketName, config.MaxBytes)
 	}
 
 	bucket := tinycache.GetBucket(bucketName)
@@ -51,5 +53,7 @@ func DelController(c *gin.Context) {
 }
 
 func RemoveBucketController(c *gin.Context) {
-
+	bucketName := c.Param("bucket")
+	tinycache.RemoveBucketLocally(bucketName)
+	c.JSON(http.StatusOK, tinycache.Success)
 }

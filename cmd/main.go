@@ -10,11 +10,12 @@ var config *base.Config
 
 func startAPIServer() {
 	api.Init(config)
-	api.RunApiServer("9999")
+	api.RunApiServer(config.ApiPort)
 }
 
 func startCacheServer() {
-	cache.RunCacheServer("8001")
+	cache.Init(config)
+	cache.RunCacheServer(config.Port)
 }
 
 func main() {

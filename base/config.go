@@ -5,12 +5,16 @@ import (
 )
 
 type Config struct {
-	Port     string `env:"TINY_CACHE_PORT",default:"8001"`
-	ApiPort  string `env:"TINY_CACHE_API_PORT",default:"9999"`
-	StartApi bool   `env:"TINY_CACHE_START_API",default:"false"`
-	Master   string `env:"TINY_CACHE_MASTER",default:"localhost:8001"`
+	Name          string `env:"TINY_CACHE_SERVER_NAME" envDefault:"TinyCache"`
+	Port          string `env:"TINY_CACHE_PORT" envDefault:"8001"`
+	ApiPort       string `env:"TINY_CACHE_API_PORT" envDefault:"9999"`
+	StartApi      bool   `env:"TINY_CACHE_START_API" envDefault:"false"`
+	Master        string `env:"TINY_CACHE_MASTER" envDefault:"localhost:8001"`
+	SecondaryList string `env:"TINY_CACHE_SECONDARY_LIST" envDefault:""`
 
-	MaxBytes int64 `env:"TINY_CACHE_MAX_BYTES",default:"20480"`
+	EliminationMethod string `env:"TINY_CACHE_ELIMINATION_METHOD" envDefault:"LRU"`
+
+	MaxBytes int64 `env:"TINY_CACHE_MAX_BYTES" envDefault:"20480"`
 }
 
 func LoadConfig() *Config {

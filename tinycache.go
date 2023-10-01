@@ -2,12 +2,12 @@ package tinycache
 
 import (
 	"fmt"
+	"github.com/TremblingV5/TinyCache/pb"
 	"log"
 	"sync"
 
 	"github.com/TremblingV5/TinyCache/base"
 	"github.com/TremblingV5/TinyCache/ds/cmap"
-	"github.com/TremblingV5/TinyCache/pb"
 	"github.com/TremblingV5/TinyCache/singleflight"
 )
 
@@ -38,6 +38,9 @@ func (f GetterFunc) Get(key string) ([]byte, error) {
 var (
 	mu      sync.RWMutex
 	buckets = cmap.New[*Bucket](32)
+
+	secondaryServerLock sync.RWMutex
+	secondaryServerList = cmap.New[string](32)
 )
 
 // NewBucket create a new instance of Bucket
@@ -57,13 +60,14 @@ func NewBucket(name string, cacheBytes int64, getter Getter) *Bucket {
 	return g
 }
 
-func AddBucket(name string, cacheBytes int64) {
-	// mu.Lock()
-	// defer mu.Unlock()
-
+func AddBucketLocally(name string, cacheBytes int64) {
 	buckets.Set(name, NewBucket(name, cacheBytes, GetterFunc(func(key string) ([]byte, error) {
 		return nil, nil
 	})))
+}
+
+func RemoveBucketLocally(name string) {
+	buckets.Remove(name)
 }
 
 // GetBucket returns the named group previously created with NewBucket, or
@@ -91,11 +95,28 @@ func (g *Bucket) Get(key string) (base.ByteView, error) {
 	return g.load(key)
 }
 
+func (b *Bucket) GetLocally(key string) (base.ByteView, error) {
+	if v, ok := b.mainCache.get(key); ok {
+		log.Println("[GeeCache] hit")
+		return v, nil
+	}
+
+	return base.ByteView{}, ErrKeyNotFound
+}
+
 func (g *Bucket) Set(key string, value base.ByteView) {
 	g.mainCache.set(key, value)
 }
 
+func (b *Bucket) SetLocally(key string, value base.ByteView) {
+	b.mainCache.set(key, value)
+}
+
 func (g *Bucket) Del(key string) {
+	g.mainCache.del(key)
+}
+
+func (g *Bucket) DelLocally(key string) {
 	g.mainCache.del(key)
 }
 
@@ -129,6 +150,10 @@ func (g *Bucket) load(key string) (value base.ByteView, err error) {
 	return
 }
 
+func (b *Bucket) upload(key string, value base.ByteView) {
+
+}
+
 func (g *Bucket) populateCache(key string, value base.ByteView) {
 	g.mainCache.set(key, value)
 }
@@ -144,15 +169,22 @@ func (g *Bucket) getLocally(key string) (base.ByteView, error) {
 	return value, nil
 }
 
-func (g *Bucket) getFromPeer(peer PeerGetter, key string) (base.ByteView, error) {
-	req := &pb.Request{
-		Group: g.name,
-		Key:   key,
+func (g *Bucket) getFromPeer(peer PeerHandle, key string) (base.ByteView, error) {
+	req := &pb.GetKeyRequest{
+		Bucket: g.name,
+		Key:    key,
 	}
-	res := &pb.Response{}
+	res := &pb.GetKeyResponse{}
 	err := peer.Get(req, res)
 	if err != nil {
 		return base.ByteView{}, err
 	}
 	return base.ByteView{B: res.Value}, nil
+}
+
+func AddSecondaryServer(name string, addr string) {
+	secondaryServerLock.Lock()
+	defer secondaryServerLock.Unlock()
+
+	secondaryServerList.Set(name, addr)
 }

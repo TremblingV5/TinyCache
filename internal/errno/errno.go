@@ -16,6 +16,10 @@ func NewErrNo(code int, msg string) ErrNo {
 	return ErrNo{code, msg, ""}
 }
 
+func (e ErrNo) Code() int64 {
+	return int64(e.ErrCode)
+}
+
 func (e ErrNo) Copy() ErrNo {
 	newErrNo := NewErrNo(e.ErrCode, e.ErrMsg)
 	return newErrNo
