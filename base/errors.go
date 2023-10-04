@@ -1,4 +1,4 @@
-package tinycache
+package base
 
 import "github.com/TremblingV5/TinyCache/internal/errno"
 

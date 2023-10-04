@@ -1,6 +1,7 @@
 package elimination
 
 import (
+	"github.com/TremblingV5/TinyCache/ds/typedef"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -9,12 +10,12 @@ import (
 )
 
 func runLRUCacheTest(t *testing.T, maxBytes int64, shardCount int, test func(*testing.T, *base.BaseCache)) {
-	cache := base.NewBaseCache(maxBytes, shardCount, func(s string, v base.Value) {})
-	cache.SetHandle(&LRU{})
+	cache := base.NewBaseCache(maxBytes, shardCount, func(s string, v typedef.Value) {})
+	cache.SetElimination(&LRU{})
 }
 
 func lruSet(t *testing.T, cache *base.BaseCache, key string, value string, expectErr error) {
-	err := cache.Set(key, base.String(value))
+	err := cache.Set(key, typedef.String(value))
 	require.Equal(t, err, expectErr)
 }
 
@@ -22,7 +23,7 @@ func lruGet(t *testing.T, cache *base.BaseCache, key string, expectOk bool, expe
 	value, ok := cache.Get(key)
 	require.Equal(t, ok, expectOk)
 	if ok {
-		require.Equal(t, string(value.(base.String)), expectValue)
+		require.Equal(t, string(value.(typedef.String)), expectValue)
 	}
 }
 

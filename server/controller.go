@@ -1,4 +1,4 @@
-package api
+package server
 
 import (
 	"net/http"
@@ -14,13 +14,13 @@ func GetController(c *gin.Context) {
 	key := c.Param("key")
 
 	if bucket := tinycache.GetBucket(bucketName); bucket != nil {
-		if value, err := bucket.Get(key); err != nil {
-			c.JSON(http.StatusOK, tinycache.ErrKeyNotFound)
+		if value, err := tinycache.Get(bucketName, key); err != nil {
+			c.JSON(http.StatusOK, base.ErrKeyNotFound)
 		} else {
-			c.JSON(http.StatusOK, tinycache.Success.WithData(value.String()))
+			c.JSON(http.StatusOK, base.Success.WithData(value.String()))
 		}
 	} else {
-		c.JSON(http.StatusOK, tinycache.ErrBucketNotFound)
+		c.JSON(http.StatusOK, base.ErrBucketNotFound)
 	}
 }
 
@@ -33,11 +33,8 @@ func SetController(c *gin.Context) {
 		tinycache.AddBucketLocally(bucketName, config.MaxBytes)
 	}
 
-	bucket := tinycache.GetBucket(bucketName)
-	bucket.Set(key, base.ByteView{
-		B: []byte(value),
-	})
-	c.JSON(http.StatusOK, tinycache.Success)
+	tinycache.Set(bucketName, key, []byte(value))
+	c.JSON(http.StatusOK, base.Success)
 }
 
 func DelController(c *gin.Context) {
@@ -45,15 +42,9 @@ func DelController(c *gin.Context) {
 	key := c.Param("key")
 
 	if bucket := tinycache.GetBucket(bucketName); bucket != nil {
-		bucket.Del(key)
-		c.JSON(http.StatusOK, tinycache.Success)
+		tinycache.Del(bucketName, key)
+		c.JSON(http.StatusOK, base.Success)
 	} else {
-		c.JSON(http.StatusOK, tinycache.ErrBucketNotFound)
+		c.JSON(http.StatusOK, base.ErrBucketNotFound)
 	}
-}
-
-func RemoveBucketController(c *gin.Context) {
-	bucketName := c.Param("bucket")
-	tinycache.RemoveBucketLocally(bucketName)
-	c.JSON(http.StatusOK, tinycache.Success)
 }

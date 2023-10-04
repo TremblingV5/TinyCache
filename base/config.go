@@ -11,6 +11,7 @@ type Config struct {
 	StartApi      bool   `env:"TINY_CACHE_START_API" envDefault:"false"`
 	Master        string `env:"TINY_CACHE_MASTER" envDefault:"localhost:8001"`
 	SecondaryList string `env:"TINY_CACHE_SECONDARY_LIST" envDefault:""`
+	SecondaryNum  int    `env:"TINY_CACHE_SECONDARY_NUM" envDefault:"0"`
 
 	EliminationMethod string `env:"TINY_CACHE_ELIMINATION_METHOD" envDefault:"LRU"`
 

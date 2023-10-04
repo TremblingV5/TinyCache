@@ -2,26 +2,26 @@ package main
 
 import (
 	"github.com/TremblingV5/TinyCache/base"
-	"github.com/TremblingV5/TinyCache/server/api"
-	"github.com/TremblingV5/TinyCache/server/cache"
+	"github.com/TremblingV5/TinyCache/server"
+	"github.com/TremblingV5/TinyCache/transmit"
 )
 
 var config *base.Config
 
 func startAPIServer() {
-	api.Init(config)
-	api.RunApiServer(config.ApiPort)
+	if config.StartApi {
+		server.Init(config)
+		server.RunApiServer(config.ApiPort)
+	}
 }
 
 func startCacheServer() {
-	cache.Init(config)
-	cache.RunCacheServer(config.Port)
+	transmit.Init(config)
 }
 
 func main() {
 	config = base.LoadConfig()
 
 	go startAPIServer()
-
 	startCacheServer()
 }

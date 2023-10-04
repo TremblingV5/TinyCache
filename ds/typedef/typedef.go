@@ -1,4 +1,4 @@
-package base
+package typedef
 
 type String string
 

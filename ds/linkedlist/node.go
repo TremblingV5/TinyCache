@@ -1,17 +1,20 @@
-package base
+package linkedlist
 
-import "unsafe"
+import (
+	"github.com/TremblingV5/TinyCache/ds/typedef"
+	"unsafe"
+)
 
 type Node struct {
 	last, next *Node
 	key        string
-	value      Value
+	Val        typedef.Value
 }
 
-func NewNode(key string, value Value) *Node {
+func NewNode(key string, value typedef.Value) *Node {
 	return &Node{
-		key:   key,
-		value: value,
+		key: key,
+		Val: value,
 	}
 }
 
@@ -33,12 +36,12 @@ func (node *Node) SetLast(lastNode *Node) *Node {
 	return lastNode
 }
 
-func (node *Node) Key() String {
-	return String(node.key)
+func (node *Node) Key() typedef.String {
+	return typedef.String(node.key)
 }
 
-func (node *Node) Value() Value {
-	return node.value
+func (node *Node) Value() typedef.Value {
+	return node.Val
 }
 
 func (node *Node) Size() int {

@@ -16,6 +16,9 @@ services:
             - ApiPort=9999
             - StartApi=true
             - Master=self
+            - SecondaryList=master:8000,slave1:8001,slave2:8002
+            - SecondaryNum=3
+            - EliminationMethod=LRU
             - MaxBytes=20480
         restart: always
 
@@ -29,6 +32,9 @@ services:
             - ApiPort=9999
             - StartApi=false
             - Master=master:8000
+            - SecondaryList=master:8000,slave1:8001,slave2:8002
+            - SecondaryNum=3
+            - EliminationMethod=LRU
             - MaxBytes=20480
         depends_on:
             - master
@@ -44,6 +50,9 @@ services:
             - ApiPort=9999
             - StartApi=false
             - Master=master:8000
+            - SecondaryList=master:8000,slave1:8001,slave2:8002
+            - SecondaryNum=3
+            - EliminationMethod=LRU
             - MaxBytes=20480
         depends_on:
             - master
