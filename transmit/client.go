@@ -2,15 +2,19 @@ package transmit
 
 import (
 	"context"
+
+	"google.golang.org/grpc"
+
 	"github.com/TremblingV5/TinyCache/ds/cmap"
 	"github.com/TremblingV5/TinyCache/pb"
-	"google.golang.org/grpc"
+	"github.com/TremblingV5/TinyCache/singleflight"
 )
 
 var clientList = cmap.New[*RpcClient](32)
 
 type RpcClient struct {
 	client pb.CacheServerClient
+	loader *singleflight.Group
 }
 
 func GetRpcClient(addr string) *RpcClient {
@@ -20,6 +24,7 @@ func GetRpcClient(addr string) *RpcClient {
 		conn, _ := grpc.Dial(addr, grpc.WithInsecure())
 		client := &RpcClient{
 			client: pb.NewCacheServerClient(conn),
+			loader: &singleflight.Group{},
 		}
 		clientList.Set(addr, client)
 		return client
@@ -27,14 +32,17 @@ func GetRpcClient(addr string) *RpcClient {
 }
 
 func (c *RpcClient) Get(bucket, key string) ([]byte, error) {
-	resp, err := c.client.Get(context.Background(), &pb.GetKeyRequest{
-		Bucket: bucket,
-		Key:    key,
+	v, err := c.loader.Do(key, func() (interface{}, error) {
+		resp, err := c.client.Get(context.Background(), &pb.GetKeyRequest{
+			Bucket: bucket,
+			Key:    key,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return resp.Value, nil
 	})
-	if err != nil {
-		return nil, err
-	}
-	return resp.Value, nil
+	return v.([]byte), err
 }
 
 func (c *RpcClient) Set(bucket, key string, value []byte) error {

@@ -1,7 +1,7 @@
 package transmit
 
 import (
-	"github.com/TremblingV5/TinyCache/consistenthash"
+	"github.com/TremblingV5/TinyCache/ds/consistenthash"
 	"sync"
 )
 

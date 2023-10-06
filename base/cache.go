@@ -1,6 +1,7 @@
 package base
 
 import (
+	"github.com/TremblingV5/TinyCache/ds/typedef"
 	"sync"
 )
 
@@ -23,18 +24,18 @@ func (c *Cache) SetElimination(e ICacheElimination) {
 	c.cache.SetElimination(e)
 }
 
-func (c *Cache) Set(key string, value ByteView) {
+func (c *Cache) Set(key string, value typedef.DataBytes) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.cache.Set(key, value)
 }
 
-func (c *Cache) Get(key string) (value ByteView, ok bool) {
+func (c *Cache) Get(key string) (value typedef.DataBytes, ok bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if v, ok := c.cache.Get(key); ok {
-		return v.(ByteView), ok
+		return v.(typedef.DataBytes), ok
 	}
 
 	return

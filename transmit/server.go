@@ -2,6 +2,7 @@ package transmit
 
 import (
 	"context"
+	"github.com/TremblingV5/TinyCache/ds/typedef"
 
 	"github.com/TremblingV5/TinyCache/base"
 	"github.com/TremblingV5/TinyCache/pb"
@@ -42,7 +43,7 @@ func (c *CacheServer) Set(ctx context.Context, req *pb.SetKeyRequest) (*pb.SetKe
 	}
 
 	bucket := base.GetBucket(bucketName)
-	bucket.SetLocally(key, base.ByteView{
+	bucket.SetLocally(key, typedef.DataBytes{
 		B: []byte(value),
 	})
 

@@ -2,6 +2,7 @@ package tinycache
 
 import (
 	"github.com/TremblingV5/TinyCache/base"
+	"github.com/TremblingV5/TinyCache/ds/typedef"
 	"github.com/TremblingV5/TinyCache/transmit"
 )
 
@@ -17,7 +18,7 @@ func RemoveBucketLocally(bucket string) {
 	base.RemoveBucketLocally(bucket)
 }
 
-func Get(bucket, key string) (base.ByteView, error) {
+func Get(bucket, key string) (typedef.DataBytes, error) {
 	v, err := base.GetBucket(bucket).GetLocally(key)
 	if err == nil {
 		return v, nil
@@ -25,9 +26,9 @@ func Get(bucket, key string) (base.ByteView, error) {
 
 	v1, err := transmit.Get(bucket, key)
 	if err != nil {
-		return base.ByteView{}, err
+		return typedef.DataBytes{}, err
 	}
-	return base.ByteView{
+	return typedef.DataBytes{
 		B: v1,
 	}, nil
 }

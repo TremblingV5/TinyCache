@@ -13,9 +13,17 @@ type Config struct {
 	SecondaryList string `env:"TINY_CACHE_SECONDARY_LIST" envDefault:""`
 	SecondaryNum  int    `env:"TINY_CACHE_SECONDARY_NUM" envDefault:"0"`
 
+	SnowFlakeNodeNum int `env:"TINY_CACHE_SNOWFLAKE_NODE_NUM" envDefault:"1"`
+
 	EliminationMethod string `env:"TINY_CACHE_ELIMINATION_METHOD" envDefault:"LRU"`
 
 	MaxBytes int64 `env:"TINY_CACHE_MAX_BYTES" envDefault:"20480"`
+
+	LogFileName   string `env:"TINY_CACHE_LOG_FILE_NAME" envDefault:"/tmp/tiny_cache.log"`
+	LogMaxSize    int    `env:"TINY_CACHE_LOG_MAX_SIZE" envDefault:"500"`
+	LogMaxBackups int    `env:"TINY_CACHE_LOG_MAX_BACKUPS" envDefault:"3"`
+	LogMaxAge     int    `env:"TINY_CACHE_LOG_MAX_AGE" envDefault:"7"`
+	LogLevel      string `env:"TINY_CACHE_LOG_LEVEL" envDefault:"info"`
 }
 
 func LoadConfig() *Config {
