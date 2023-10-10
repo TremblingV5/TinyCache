@@ -1,0 +1,24 @@
+version: "3"
+
+services:
+    single:
+        image: tinycache:latest
+        container_name: single
+        deploy:
+            resources:
+                limits:
+                    memory: 2G
+                    cpus: 2
+        ports:
+            - "8000:8000"
+            - "9999:9999"
+        environment:
+            - TINY_CACHE_PORT=8000
+            - TINY_CACHE_API_PORT=9999
+            - TINY_CACHE_START_API=true
+            - TINY_CACHE_MASTER=self
+            - TINY_CACHE_SECONDARY_LIST=localhost:8000
+            - TINY_CACHE_SECONDARY_NUM=1
+            - TINY_CACHE_ELIMINATION_METHOD=LRU
+            - TINY_CACHE_MAX_BYTES=20480
+        restart: always

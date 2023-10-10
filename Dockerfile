@@ -9,7 +9,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build -a -o serve ./cmd/
+RUN CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build -a -o serve ./cmd/server/
 
 FROM alpine:3.16 AS final
 

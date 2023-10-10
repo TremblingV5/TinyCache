@@ -6,10 +6,10 @@ import (
 
 type Config struct {
 	Name          string `env:"TINY_CACHE_SERVER_NAME" envDefault:"TinyCache"`
-	Port          string `env:"TINY_CACHE_PORT" envDefault:"8001"`
+	Port          string `env:"TINY_CACHE_PORT" envDefault:"8000"`
 	ApiPort       string `env:"TINY_CACHE_API_PORT" envDefault:"9999"`
 	StartApi      bool   `env:"TINY_CACHE_START_API" envDefault:"false"`
-	Master        string `env:"TINY_CACHE_MASTER" envDefault:"localhost:8001"`
+	Master        string `env:"TINY_CACHE_MASTER" envDefault:"localhost:8000"`
 	SecondaryList string `env:"TINY_CACHE_SECONDARY_LIST" envDefault:""`
 	SecondaryNum  int    `env:"TINY_CACHE_SECONDARY_NUM" envDefault:"0"`
 
